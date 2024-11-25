@@ -1,0 +1,81 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: url("https://source.unsplash.com/random/1920x1080") no-repeat
+    center center/cover;
+}
+
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100%;
+}
+
+.form-container {
+    width: 400px;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    text-align: center;
+    color: white;
+}
+
+h2 {
+    margin-bottom: 1.5rem;
+}
+
+.glass-form input {
+    width: 94%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1rem;
+}
+
+.glass-form input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.glass-form button {
+    width: 100%;
+    padding: 0.75rem;
+    background: rgba(0, 123, 255, 0.7);
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.glass-form button:hover {
+    background: rgba(0, 123, 255, 1);
+}
+
+.switch-button {
+    margin-top: 1rem;
+    background: transparent;
+    border: 2px solid rgba(0, 123, 255, 0.7);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.switch-button:hover {
+    background: rgba(0, 123, 255, 0.7);
+}
