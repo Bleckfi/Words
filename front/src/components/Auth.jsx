@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import "../styles/auth.css";
 
 function Auth() {
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [nickname, setNickname] = useState("");
     const [isRegister, setIsRegister] = useState(false);
@@ -14,11 +14,12 @@ function Auth() {
         e.preventDefault();
 
         if (isRegister) {
+            console.log(isRegister);
             try {
-                const response = await axios.post("http://localhost:3000/api/register", {
-                    username,
+                const response = await axios.post("http://localhost:3000/register", {
+                    email,
                     password,
-                    nickname, // Добавляем nickname для регистрации
+                    nickname,
                 });
 
                 if (response.status === 201) {
@@ -36,8 +37,8 @@ function Auth() {
             }
         } else {
             try {
-                const response = await axios.post("http://localhost:3000/api/login", {
-                    username,
+                const response = await axios.post("http://localhost:3000/login", {
+                    email,
                     password,
                 });
 
@@ -54,7 +55,7 @@ function Auth() {
                 console.error("Error:", error);
             }
         }
-    }
+    };
 
     return (
         <div className="auth-container">
@@ -64,7 +65,7 @@ function Auth() {
                     {isRegister && ( // Поле "Nickname" показывается только при регистрации
                         <input
                             type="text"
-                            placeholder="Username"
+                            placeholder="Nickname"
                             value={nickname}
                             onChange={(e) => setNickname(e.target.value)}
                             required
@@ -73,8 +74,8 @@ function Auth() {
                     <input
                         type="email"
                         placeholder="Email"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        value={email} // Используем правильную переменную для email
+                        onChange={(e) => setEmail(e.target.value)} // Исправленный обработчик
                         required
                     />
                     <input

@@ -11,11 +11,12 @@ function App() {
                 <Route
                     path="/game"
                     element={
-                        <ProtectedRoute>
+                      //  <ProtectedRoute>
                             <Game />
-                        </ProtectedRoute>
+                       // </ProtectedRoute>
                     }
                 />
+
             </Routes>
         </Router>
     );

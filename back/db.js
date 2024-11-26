@@ -1,23 +1,38 @@
-const sql = require("mssql");
+const { Connection } = require("tedious");
 
+// Конфигурация подключения
 const config = {
-    user: "PROGRAMMER\\PC",    // Имя пользователя SQL Server
-    password: "",   // Пароль
-    server: "PROGRAMMER",        // Имя хоста или IP-адрес сервера
-    database: "dbWords",         // Имя базы данных
+    server: "PROGRAMMER",
+    authentication: {
+        type: "default", // Используйте NTLM для Windows Authentication
+        options: {
+            domain: "PROGRAMMER", // Имя домена или компьютера
+            userName: "Bleck", // Ваш Windows-логин
+            password: "123", // Пароль Windows-учетной записи
+        },
+    },
     options: {
-        encrypt: false,           // Для защищенного подключения (если требуется)
-        trustServerCertificate: true, // Для работы с самоподписанными сертификатами
-    }
+        trustServerCertificate: true,
+        database: "dbWords",
+    },
 };
 
-async function connectToDatabase() {
-    try {
-        await sql.connect(config);
-        console.log("Connected to SQL Server successfully!");
-    } catch (err) {
-        console.error("Error connecting to SQL Server:", err);
-    }
-}
+const connectToDB = () => {
+    return new Promise((resolve, reject) => {
+        const connection = new Connection(config);
 
-connectToDatabase();
+        connection.on("connect", (err) => {
+            if (err) {
+                console.error("Database connection failed:", err);
+                return reject(err);
+            }
+
+            console.log("Connected to the database");
+            resolve(connection);
+        });
+
+        connection.connect();
+    });
+};
+
+module.exports = { connectToDB };

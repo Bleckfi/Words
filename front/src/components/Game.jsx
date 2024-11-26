@@ -4,83 +4,127 @@ import { useNavigate } from "react-router-dom";
 
 function Game() {
     const [word, setWord] = useState("");
-    const [timer, setTimer] = useState(30);
     const [log, setLog] = useState([]);
-    const [winner, setWinner] = useState("");
-    const [waiting, setWaiting] = useState(true);
+    const [timer, setTimer] = useState(30);
+    const [players, setPlayers] = useState([]);
+    const [turn, setTurn] = useState("");
+    const [username, setUsername] = useState("");
+    const [gameOverMessage, setGameOverMessage] = useState("");
+    const [waitingForName, setWaitingForName] = useState(true); // Состояние для ожидания ввода имени
+    const [errorMessage, setErrorMessage] = useState(""); // Для отображения ошибки
 
     const navigate = useNavigate();
-    const socket = useRef(null); // Используем useRef для хранения socket
+    const socket = useRef(null);
 
     useEffect(() => {
-        // Инициализация WebSocket-соединения
         const token = localStorage.getItem("token");
         socket.current = io("http://localhost:3000", {
             auth: { token },
         });
 
         socket.current.on("connect", () => {
-            console.log("Connected to the server!");
-            socket.current.emit("join_game");
+            // Подключение завершено, но имя будет отправлено только после ввода
         });
 
         socket.current.on("waiting", (data) => {
-            setWaiting(true);
-            console.log(data.message);
+            setLog([data.message]);
         });
 
         socket.current.on("game_update", (data) => {
-            setWaiting(false);
             setLog(data.log);
+            setPlayers(data.players);
+            setTurn(data.turn); // Обновляем текущее имя игрока, чей ход
+            setTimer(data.timer);
+        });
+
+        socket.current.on("timer_update", (data) => {
             setTimer(data.timer);
         });
 
         socket.current.on("game_over", (data) => {
-            setWinner(data.winner);
-            console.log(`Game Over! Winner: ${data.winner}`);
+            setGameOverMessage(data.message);
+        });
+
+        socket.current.on("invalid_word", (message) => {
+            setErrorMessage(message); // Отображаем сообщение об ошибке
         });
 
         socket.current.on("disconnect", () => {
-            console.log("Disconnected from the server!");
-        });
-
-        socket.current.on("error", (err) => {
-            console.error(err);
-            alert("Authentication failed, redirecting to login.");
+            alert("Disconnected from the server!");
             navigate("/");
         });
 
-        return () => socket.current.disconnect(); // Очистка при размонтировании компонента
+        return () => socket.current.disconnect();
     }, [navigate]);
 
-    const submitWord = () => {
-        if (word) {
-            socket.current.emit("submit_word", { word }); // Используем socket.current
-            setWord("");
+    const handleNameSubmit = () => {
+        if (username) {
+            setWaitingForName(false); // Скрыть форму после ввода имени
+            socket.current.emit("join_game", username); // Отправить имя на сервер
         }
     };
 
-    if (waiting) return <h1>Waiting for another player...</h1>;
-    if (winner) return <h1>Game Over! Winner: {winner}</h1>;
+    const submitWord = () => {
+        if (word && turn === username) {
+            socket.current.emit("submit_word", { word });
+            setWord("");
+            setErrorMessage(""); // Сброс ошибки после отправки слова
+        }
+    };
+
+    if (waitingForName) {
+        return (
+            <div>
+                <h1>Enter Your Name</h1>
+                <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your name"
+                />
+                <button onClick={handleNameSubmit}>Join Game</button>
+            </div>
+        );
+    }
+
+    if (!socket.current || !turn) {
+        return <div>Connecting to the game...</div>;
+    }
 
     return (
         <div>
             <h1>Word Game</h1>
-            <div>Timer: {timer}s</div>
+            {gameOverMessage && <div><strong>Game Over:</strong> {gameOverMessage}</div>}
             <div>
+                <strong>Timer:</strong> {timer}s
+            </div>
+            <div>
+                <strong>Players:</strong> {players.join(" vs ")}
+            </div>
+            <div>
+                <strong>Your name:</strong> {username}
+            </div>
+            <div>
+                <strong>Current turn:</strong> {turn}
+            </div>
+            <textarea
+                value={log.join("\n")}
+                readOnly
+                rows={10}
+                cols={50}
+            />
+            <div>
+                {errorMessage && <div style={{ color: 'red' }}>{errorMessage}</div>} {/* Отображаем ошибку */}
                 <input
                     value={word}
                     onChange={(e) => setWord(e.target.value)}
-                    placeholder="Enter a word"
+                    placeholder="Enter your word"
+                    disabled={turn !== username}
                 />
-                <button onClick={submitWord}>Submit</button>
+                <button onClick={submitWord} disabled={turn !== username}>
+                    Submit
+                </button>
             </div>
-            <h2>Log:</h2>
-            <ul>
-                {log.map((entry, index) => (
-                    <li key={index}>{entry}</li>
-                ))}
-            </ul>
         </div>
     );
 }

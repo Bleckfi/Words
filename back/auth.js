@@ -1,60 +1,153 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const sql = require("mssql");
+const { Connection, Request, TYPES } = require("tedious");
 
+// Конфигурация подключения
 const config = {
-    user: "your_username",
-    password: "your_password",
     server: "PROGRAMMER",
-    database: "dbWords",
+    authentication: {
+        type: "default", // Используйте NTLM для Windows Authentication
+        options: {
+            domain: "PROGRAMMER", // Имя домена или компьютера
+            userName: "Bleck", // Ваш Windows-логин
+            password: "123", // Пароль Windows-учетной записи
+        },
+    },
     options: {
-        encrypt: true,
         trustServerCertificate: true,
-    }
+        database: "dbWords",
+    },
 };
 
+// Функция для выполнения запросов
+const executeQuery = (query, parameters = []) => {
+    return new Promise((resolve, reject) => {
+        const connection = new Connection(config);
+
+        connection.on("connect", (err) => {
+            if (err) {
+                console.error("Connection error:", err);
+                return reject(err);
+            }
+
+            const request = new Request(query, (err, rowCount, rows) => {
+                if (err) {
+                    console.error("Request error:", err);
+                    return reject(err);
+                }
+
+                const results = [];
+                rows.forEach((columns) => {
+                    const result = {};
+                    columns.forEach((column) => {
+                        result[column.metadata.colName] = column.value;
+                    });
+                    results.push(result);
+                });
+
+                resolve(results);
+                connection.close();  // Закрытие соединения после выполнения запроса
+            });
+
+            // Добавление параметров в запрос
+            parameters.forEach(({ name, type, value }) => {
+                try {
+                    request.addParameter(name, type, value);
+                } catch (err) {
+                    console.error("Error adding parameter:", err);
+                    reject(err);
+                }
+            });
+
+            connection.execSql(request);
+        });
+
+        connection.on("error", (err) => {
+            console.error("Connection error:", err);
+            reject(err);
+        });
+
+        // Открытие соединения
+        connection.connect();
+    });
+};
+
+// Регистрация пользователя
 const registerUser = async (req, res) => {
-    const { username, password } = req.body;
+    const { email, username, password } = req.body;
 
     try {
-        const pool = await sql.connect(config);
+        // Проверка на существование пользователя по email или username
+        const existingUsers = await executeQuery(
+            "SELECT UserID FROM users WHERE email = @Email OR username = @Username",
+            [
+                { name: "Email", type: TYPES.NVarChar, value: email.trim() },
+                { name: "Username", type: TYPES.NVarChar, value: username.trim() }
+            ]
+        );
+
+        if (existingUsers.length > 0) {
+            return res.status(400).json({ error: "Email or username already exists!" });
+        }
+
+        // Хеширование пароля
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Вставка пользователя в таблицу
-        await pool.request()
-            .input('username', sql.NVarChar, username)
-            .input('password_hash', sql.NVarChar, hashedPassword)
-            .query('INSERT INTO users (username, password_hash) VALUES (@username, @password_hash)');
+        // Добавление нового пользователя
+        await executeQuery(
+            "INSERT INTO users (email, username, PasswordHash) VALUES (@Email, @Username, @PasswordHash)",
+            [
+                { name: 'Email', type: TYPES.NVarChar, value: email.trim() },
+                { name: 'Username', type: TYPES.NVarChar, value: username.trim() },
+                { name: 'PasswordHash', type: TYPES.NVarChar, value: hashedPassword }
+            ]
+        );
 
         res.status(201).json({ message: "User registered successfully!" });
     } catch (error) {
-        console.error(error);
-        res.status(400).json({ error: "Error registering user!" });
+        console.error("Error during registration:", error);
+        res.status(500).json({ error: "Error registering user!" });
     }
 };
 
+// Вход пользователя
 const loginUser = async (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
+
+    console.log("Received login request:", { email, password });
 
     try {
-        const pool = await sql.connect(config);
-        const result = await pool.request()
-            .input('username', sql.NVarChar, username)
-            .query('SELECT * FROM users WHERE username = @username');
+        // Поиск пользователя с игнорированием регистра
+        const users = await executeQuery(
+            "SELECT * FROM Users WHERE email = @Email",
+            [{ name: 'email', type: TYPES.NVarChar, value: email.trim() }]
+        );
 
-        const user = result.recordset[0];
-        if (!user) return res.status(404).json({ error: "User not found!" });
+        console.log("Users found:", users);
 
-        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordValid) return res.status(401).json({ error: "Invalid password!" });
+        if (users.length === 0) {
+            return res.status(404).json({ error: "User not found!" });
+        }
 
-        const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, {
-            expiresIn: "1h",
-        });
+        const user = users[0];
+        console.log("User found:", user);
 
-        res.json({ message: "Login successful!", token });
+        // Проверяем правильность пароля
+        const isPasswordValid = await bcrypt.compare(password, user.PasswordHash);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: "Invalid password!" });
+        }
+
+        // Генерация токена
+        const token = jwt.sign(
+            { id: user.UserID, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        res.status(200).json({ message: "Login successful!", token });
     } catch (error) {
-        console.error(error);
+        console.error("Error during login:", error);
         res.status(500).json({ error: "Internal server error!" });
     }
 };
