@@ -1,0 +1,51 @@
+.game {
+    font-size: 16px;
+    top: -130px;
+    position: relative;
+    font-weight: bold;
+}
+
+.title {
+    position: relative;
+    top: 60px;
+    text-align: center;
+
+}
+.timer {
+    position: relative;
+    top: 50px;
+    text-align: center;
+    font-size: 60px;
+}
+.players {
+    position: relative;
+    top: 50px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    font-size: 60px;
+
+}
+.current_turn {
+    position: relative;
+    top: 50px;
+}
+.text_game {
+    position: relative;
+    top: 70px;
+    text-align: center;
+}
+.letter {
+    position: relative;
+    top: 60px;
+    font-size: 20px;
+}
+.button_game {
+    position: relative;
+    top: 80px;
+}
+.button_game input {
+    margin-right: 20px;
+    height: 30px;
+}

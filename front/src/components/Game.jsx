@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useNavigate } from "react-router-dom";
-
+import "../styles/game.css"
 function Game() {
     const [word, setWord] = useState("");
     const [log, setLog] = useState([]);
-    const [timer, setTimer] = useState(30);
+    const [timer, setTimer] = useState(60);
     const [players, setPlayers] = useState([]);
     const [turn, setTurn] = useState("");
     const [username, setUsername] = useState("");
@@ -75,54 +75,52 @@ function Game() {
     if (waitingForName) {
         return (
             <div>
-                <h1>Enter Your Name</h1>
+                <h1>Введите имя</h1>
                 <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your name"
+                    placeholder="Введите имя"
                 />
-                <button onClick={handleNameSubmit}>Join Game</button>
+                <button onClick={handleNameSubmit}>Присоединиться к игре</button>
             </div>
         );
     }
 
-    if (!socket.current || !turn) {
+/*    if (!socket.current || !turn) {
         return <div>Connecting to the game...</div>;
-    }
+    }*/
 
     return (
-        <div>
-            <h1>Word Game</h1>
+        <div className="game">
+            <h1 className="title">Word Game</h1>
             {gameOverMessage && <div><strong>Game Over:</strong> {gameOverMessage}</div>}
-            <div>
-                <strong>Timer:</strong> {timer}s
+            <div className="timer">
+                {timer}
             </div>
-            <div>
-                <strong>Players:</strong> {players.join(" vs ")}
+            <div className="players">
+             Саша vs Сережа   {players.join(" vs ")}
             </div>
-            <div>
-                <strong>Your name:</strong> {username}
+            <div className="current_turn">
+                <strong>Сейчас ходит:</strong> {turn}
             </div>
-            <div>
-                <strong>Current turn:</strong> {turn}
-            </div>
-            <textarea
+            <div className="letter">Буква текущего слова должна начинаться с: Б</div>
+            <textarea className="text_game"
                 value={log.join("\n")}
                 readOnly
-                rows={10}
-                cols={50}
+                rows={15}
+                cols={70}
             />
-            <div>
+            <div className="button_game">
                 {errorMessage && <div style={{ color: 'red' }}>{errorMessage}</div>} {/* Отображаем ошибку */}
                 <input
                     value={word}
                     onChange={(e) => setWord(e.target.value)}
-                    placeholder="Enter your word"
+                    placeholder="Введите слово"
                     disabled={turn !== username}
                 />
                 <button onClick={submitWord} disabled={turn !== username}>
-                    Submit
+                    Отправить
                 </button>
             </div>
         </div>

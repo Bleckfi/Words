@@ -60,12 +60,12 @@ function Auth() {
     return (
         <div className="auth-container">
             <div className="form-container">
-                <h2>{isRegister ? "Register" : "Login"}</h2>
+                <h2>{isRegister ? "Регистрация" : "Авторизация"}</h2>
                 <form onSubmit={handleSubmit} className="glass-form">
                     {isRegister && ( // Поле "Nickname" показывается только при регистрации
                         <input
                             type="text"
-                            placeholder="Nickname"
+                            placeholder="Псевдоним"
                             value={nickname}
                             onChange={(e) => setNickname(e.target.value)}
                             required
@@ -73,25 +73,26 @@ function Auth() {
                     )}
                     <input
                         type="email"
-                        placeholder="Email"
+                        placeholder="Почта"
                         value={email} // Используем правильную переменную для email
                         onChange={(e) => setEmail(e.target.value)} // Исправленный обработчик
                         required
                     />
                     <input
                         type="password"
-                        placeholder="Password"
+                        placeholder="Пароль"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
                     />
-                    <button type="submit">{isRegister ? "Register" : "Login"}</button>
+                    <button type="submit">{isRegister ? "Регистрация" : "Авторизация"}</button>
+                    <button type="submit">Войти как гость</button>
                 </form>
                 <button
                     className="switch-button"
                     onClick={() => setIsRegister(!isRegister)}
                 >
-                    {isRegister ? "Switch to Login" : "Switch to Register"}
+                    {isRegister ? "Поменять на авторизацию" : "Поменять на регистрацию"}
                 </button>
             </div>
         </div>

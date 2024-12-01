@@ -1,0 +1,135 @@
+.container {
+    width: 960px;
+    height: 600px;
+    margin: 0 auto;
+    background: #000;
+    position: relative;
+    font-size: 24px;
+}
+.text_container {
+    position: relative;
+    left: 15px;
+}
+
+.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #ff0000;
+    cursor: pointer;
+    color: white;
+    border-radius: 15px;
+    transition: color 0.3s linear;
+}
+.button:hover {
+    background: #ffffff;
+    color: black;
+    transition: background 0.3s linear;
+}
+.left {
+    top : 30px;
+    display: flex;
+    justify-content: left;
+    flex-direction: column;
+}
+.right {
+    display: flex;
+    position: relative;
+    align-items: center;
+    justify-content: right;
+    flex-direction: column;
+    right: 30px;
+    top: 30px;
+}
+.container_Side {
+    display: flex;
+    justify-content: space-between;
+}
+
+.avatar_selector {
+    margin-top: 20px;
+    display: inline;
+}
+
+.avatars {
+    display: inline;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+    bottom: 70px;
+    right: 50px;
+}
+
+.avatar_option {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.avatar_option:hover {
+    transform: scale(1.1);
+    border-color: #ff6666;
+}
+.avatar {
+    border-radius: 50%;
+    width: 100px;
+    height: 100px;
+    display: flex; /* Убираем flex, так как это изображение */
+    object-fit: cover; /* Масштабирует картинку, сохраняя пропорции */
+    object-position: center; /* Центрирует изображение внутри круга */
+    border: 2px solid #ccc; /* Добавляем рамку, если нужно */
+}
+.container::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    right: -6px;
+    bottom: -6px;
+    background: linear-gradient(135deg, red, black, #ff00ff);
+    background-size: 200% 200%;
+    z-index: -1;
+    border-radius: 10px;
+    animation: rgbBorder 3s infinite linear;
+}
+
+@keyframes rgbBorder {
+    0% {
+        background-position: 0 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0 50%;
+    }
+}
+table {
+    margin: 0 auto;
+    border-collapse: collapse;
+    background: #c1bdbd;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+th, td {
+    text-align: center;
+    border: 1px solid #ddd;
+    color: black;
+}
+
+th {
+    background-color: #2c2929;
+    color: white;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tr:hover {
+    background-color: #f1f1f1;
+}

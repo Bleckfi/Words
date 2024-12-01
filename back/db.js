@@ -26,8 +26,6 @@ const connectToDB = () => {
                 console.error("Database connection failed:", err);
                 return reject(err);
             }
-
-            console.log("Connected to the database");
             resolve(connection);
         });
 
