@@ -4,6 +4,8 @@ const cors = require("cors");
 const { Server } = require("socket.io");
 const http = require("http");
 const jwt = require("jsonwebtoken");
+const { registerUser, loginUser, getUserProfile } = require("./auth");
+const authenticateJWT = require("./authenticateJWT.js"); // Импортируйте middleware
 
 const app = express();
 const server = http.createServer(app);
@@ -22,26 +24,32 @@ let usedWords = [];
 
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+    credentials: true
+}));
 app.use(express.json());
 
 // Игровая логика
 let games = {};
 
+app.post("/register", registerUser);
+app.post("/login", loginUser);
+app.get('/profile', authenticateJWT, getUserProfile);
 
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
-
     if (token) {
         try {
-            const user = jwt.verify(token, process.env.JWT_SECRET);
+            const user = jwt.verify(token);
             socket.user = { id: user.id, username: user.username };
+            console.log(socket.user);
         } catch (err) {
             return next(new Error("Authentication error"));
         }
     } else {
-        // Генерация уникального имени для гостя на основе socket.id
-        const guestUsername = `Guest_${socket.id.substring(0, 6)}`; // Уникальное имя для гостя
+        const guestUsername = `Guest_${socket.id.substring(0, 6)}`;
         socket.user = { id: `guest_${socket.id}`, username: guestUsername };
     }
 
@@ -49,11 +57,18 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.user.username}`);
 
+    console.log(`User connected: ${socket.user.username}`);
     socket.on("join_game", (username) => {
+
         if (username) {
             socket.user.username = username;  // Присваиваем имя игроку
+        }
+
+        if (!socket.user.username) {
+            // Если имя не задано, отправляем ошибку
+            socket.emit("error", { message: "Имя пользователя не задано!" });
+            return;
         }
 
         // Ищем доступную игру
@@ -90,7 +105,7 @@ io.on("connection", (socket) => {
             };
             socket.join(gameId);
 
-            socket.emit("waiting", { message: "Waiting for another player..." });
+            socket.emit("waiting", { message: "Ожидание еще одного игрока..." });
         }
     });
 
@@ -106,13 +121,13 @@ io.on("connection", (socket) => {
 
         // Проверка, существует ли слово в массиве validWords
         if (!validWords.includes(word)) {
-            socket.emit("invalid_word", "No such word exists.");
+            socket.emit("invalid_word", "Такое слово не найдено");
             return;
         }
 
         // Проверка, не было ли уже введено это слово
         if (game.usedWords.includes(word)) {
-            socket.emit("invalid_word", "You already used this word.");
+            socket.emit("invalid_word", "Это слово уже было использовано");
             return;
         }
 
@@ -121,7 +136,7 @@ io.on("connection", (socket) => {
             const lastWord = game.usedWords[game.usedWords.length - 1];
             const lastLetter = lastWord.charAt(lastWord.length - 1);
             if (word.charAt(0).toLowerCase() !== lastLetter.toLowerCase()) {
-                socket.emit("invalid_word", `The word must start with '${lastLetter}'.`);
+                socket.emit("invalid_word", `Слово должно начинаться на букву: '${lastLetter}'.`);
                 return;
             }
         }
@@ -134,7 +149,7 @@ io.on("connection", (socket) => {
 
         // Переключаем ход на следующего игрока
         game.turn = game.turn === game.player1.username ? game.player2.username : game.player1.username;
-        game.timer = 30; // Сбрасываем таймер
+        game.timer = 60; // Сбрасываем таймер
 
         io.to(game.id).emit("game_update", {
             log: game.log,
@@ -145,7 +160,7 @@ io.on("connection", (socket) => {
     });
 
     socket.on("disconnect", () => {
-        console.log(`User disconnected: ${socket.user.username}`);
+        console.log(`Пользователь: ${socket.user.username} отключился`);
 
         const gameId = Object.keys(games).find(
             (id) =>
@@ -158,7 +173,7 @@ io.on("connection", (socket) => {
             delete games[gameId];
 
             io.to(gameId).emit("game_update", {
-                log: [`Player ${socket.user.username} disconnected. Game ended.`],
+                log: [`Player ${socket.user.username} Отключение, игра закончилась`],
             });
         }
     });
@@ -174,8 +189,8 @@ io.on("connection", (socket) => {
             game.timer -= 1;
 
             if (game.timer === 0) {
-                const loser = game.turn === game.player1.username ? game.player1.username : game.player2.username;
-                io.to(gameId).emit("game_over", { message: `${loser} ran out of time!` });
+                const winner = game.turn !== game.player1.username ? game.player1.username : game.player2.username;
+                io.to(gameId).emit("game_over", { message: `Выиграл ${winner}, Поздравляем!` });
                 delete games[gameId];
                 clearInterval(interval);
             } else {

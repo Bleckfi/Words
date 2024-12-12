@@ -17,7 +17,7 @@ h1 {
 
 .message {
     text-align: center;
-    color: #4caf50;
+    color: red;
     margin-bottom: 20px;
     font-weight: bold;
 }

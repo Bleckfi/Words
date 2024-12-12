@@ -1,92 +1,39 @@
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const { Connection, Request, TYPES } = require("tedious");
+const sql = require('mssql');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // Конфигурация подключения
 const config = {
-    server: "PROGRAMMER",
-    authentication: {
-        type: "default", // Используйте NTLM для Windows Authentication
-        options: {
-            domain: "PROGRAMMER", // Имя домена или компьютера
-            userName: "Bleck", // Ваш Windows-логин
-            password: "123", // Пароль Windows-учетной записи
-        },
-    },
+    user: 'Bleck',
+    password: '123',
+    server: 'PROGRAMMER',
+    database: 'dbWords',
     options: {
         trustServerCertificate: true,
-        database: "dbWords",
     },
 };
 
-// Функция для выполнения запросов
-const executeQuery = (query, parameters = []) => {
-    return new Promise((resolve, reject) => {
-        const connection = new Connection(config);
-
-        connection.on("connect", (err) => {
-            if (err) {
-                console.error("Connection error:", err);
-                return reject(err);
-            }
-
-            const request = new Request(query, (err, rowCount, rows) => {
-                if (err) {
-                    console.error("Request error:", err);
-                    return reject(err);
-                }
-
-                const results = [];
-                rows.forEach((columns) => {
-                    const result = {};
-                    columns.forEach((column) => {
-                        result[column.metadata.colName] = column.value;
-                    });
-                    results.push(result);
-                });
-
-                resolve(results);
-                connection.close();  // Закрытие соединения после выполнения запроса
-            });
-
-            // Добавление параметров в запрос
-            parameters.forEach(({ name, type, value }) => {
-                try {
-                    request.addParameter(name, type, value);
-                } catch (err) {
-                    console.error("Error adding parameter:", err);
-                    reject(err);
-                }
-            });
-
-            connection.execSql(request);
-        });
-
-        connection.on("error", (err) => {
-            console.error("Connection error:", err);
-            reject(err);
-        });
-
-        // Открытие соединения
-        connection.connect();
-    });
-};
+// Создание пула соединений
+const poolPromise = new sql.ConnectionPool(config)
+    .connect()
+    .then(pool => {
+        console.log('Connected to SQL Server');
+        return pool;
+    })
+    .catch(err => console.error('Database connection failed:', err));
 
 // Регистрация пользователя
 const registerUser = async (req, res) => {
     const { email, username, password } = req.body;
 
     try {
-        // Проверка на существование пользователя по email или username
-        const existingUsers = await executeQuery(
-            "SELECT UserID FROM users WHERE email = @Email OR username = @Username",
-            [
-                { name: "Email", type: TYPES.NVarChar, value: email.trim() },
-                { name: "Username", type: TYPES.NVarChar, value: username.trim() }
-            ]
-        );
+        const pool = await poolPromise;
 
-        if (existingUsers.length > 0) {
+        // Проверка существующих пользователей
+        const existingUsers = await pool.request()
+            .query`SELECT UserID FROM Users WHERE Email = ${email} OR Username = ${username}`;
+
+        if (existingUsers.recordset.length > 0) {
             return res.status(400).json({ error: "Email or username already exists!" });
         }
 
@@ -94,14 +41,8 @@ const registerUser = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Добавление нового пользователя
-        await executeQuery(
-            "INSERT INTO users (email, username, PasswordHash) VALUES (@Email, @Username, @PasswordHash)",
-            [
-                { name: 'Email', type: TYPES.NVarChar, value: email.trim() },
-                { name: 'Username', type: TYPES.NVarChar, value: username.trim() },
-                { name: 'PasswordHash', type: TYPES.NVarChar, value: hashedPassword }
-            ]
-        );
+        await pool.request()
+            .query`INSERT INTO Users (Email, Username, PasswordHash) VALUES (${email}, ${username}, ${hashedPassword})`;
 
         res.status(201).json({ message: "User registered successfully!" });
     } catch (error) {
@@ -114,42 +55,74 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
-    console.log("Received login request:", { email, password });
-
     try {
-        // Поиск пользователя с игнорированием регистра
-        const users = await executeQuery(
-            "SELECT * FROM Users WHERE email = @Email",
-            [{ name: 'email', type: TYPES.NVarChar, value: email.trim() }]
-        );
+        const pool = await poolPromise;
 
-        console.log("Users found:", users);
+        // Получение информации о пользователе
+        const users = await pool.request()
+            .query`SELECT * FROM Users WHERE Email = ${email}`;
 
-        if (users.length === 0) {
+        if (users.recordset.length === 0) {
             return res.status(404).json({ error: "User not found!" });
         }
 
-        const user = users[0];
-        console.log("User found:", user);
-
-        // Проверяем правильность пароля
+        const user = users.recordset[0];
         const isPasswordValid = await bcrypt.compare(password, user.PasswordHash);
         if (!isPasswordValid) {
             return res.status(401).json({ error: "Invalid password!" });
         }
 
-        // Генерация токена
         const token = jwt.sign(
-            { id: user.UserID, email: user.email },
+            { id: user.UserID, email: user.Email },
             process.env.JWT_SECRET,
             { expiresIn: "1h" }
         );
+        const username = user.Username;
 
-        res.status(200).json({ message: "Login successful!", token });
+        res.status(200).json({ message: "Login successful!", token, username });
     } catch (error) {
         console.error("Error during login:", error);
         res.status(500).json({ error: "Internal server error!" });
     }
 };
 
-module.exports = { registerUser, loginUser };
+const getUserProfile = async (req, res) => {
+    const userId = req.user.id;  // Получаем идентификатор пользователя из токена
+
+    try {
+        const pool = await poolPromise;  // Создаем пул соединений с базой данных
+
+        // Запрашиваем профиль пользователя из таблицы Users (только имя)
+        const userProfile = await pool.request()
+            .query`SELECT Username FROM Users WHERE UserID = ${userId}`;
+
+        // Запрашиваем данные о счете пользователя из таблицы ScoreBoard
+        const userScore = await pool.request()
+            .query`SELECT Wins, Losses FROM ScoreBoard WHERE UserID = ${userId}`;
+
+        // Если профиль пользователя не найден
+        if (userProfile.recordset.length === 0) {
+            return res.status(404).json({ error: "User not found!" });
+        }
+
+        // Если данные о счете не найдены, создаем значения по умолчанию
+        const wins = userScore.recordset[0]?.Wins || 0;
+        const losses = userScore.recordset[0]?.Losses || 0;
+
+        // Вычисляем winRate
+        const winRate = ((wins / (wins + losses)) * 100).toFixed(2);
+
+        res.status(200).json({
+            username: userProfile.recordset[0].Username,  // Имя пользователя из Users
+            winRate: winRate,  // Рассчитанный winRate
+            wins: wins,        // Количество побед
+            losses: losses     // Количество поражений
+        });
+    } catch (error) {
+        console.error("Error fetching user profile:", error);
+        res.status(500).json({ error: "Internal server error!" });
+    }
+};
+
+
+module.exports = { registerUser, loginUser, getUserProfile };

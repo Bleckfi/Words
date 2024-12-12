@@ -21,6 +21,7 @@
     color: white;
     border-radius: 15px;
     transition: color 0.3s linear;
+    margin: 50px 0;
 }
 .button:hover {
     background: #ffffff;

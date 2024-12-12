@@ -13,7 +13,7 @@ function WordManager() {
             return;
         }
         setMessage(`Слово "${word}" успешно добавлено!`);
-        setWord(""); // Очистить поле ввода
+        setWord("");
     };
 
     const handleDeleteWord = (e) => {

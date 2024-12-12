@@ -6,51 +6,65 @@ import "../styles/auth.css";
 function Auth() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [nickname, setNickname] = useState("");
+    const [username, setUsername] = useState("");
     const [isRegister, setIsRegister] = useState(false);
-    const navigate = useNavigate();
+    const navigate = useNavigate(); // Хук для навигации
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         if (isRegister) {
-            console.log(isRegister);
+            // Регистрация
             try {
                 const response = await axios.post("http://localhost:3000/register", {
                     email,
                     password,
-                    nickname,
+                    username,
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
                 });
 
                 if (response.status === 201) {
-                    alert("Registration successful!");
-                    setIsRegister(false);
+                    alert("Регистрация успешна!");
+                    setIsRegister(false); // Смена режима на авторизацию
                 }
             } catch (error) {
                 // Обработка ошибок
                 if (error.response) {
-                    alert(error.response.data.error || "Registration failed.");
+                    alert(error.response.data.error || "Данный пользователь уже зарегистрирован");
                 } else {
-                    alert("An error occurred. Please try again.");
+                    alert("Произошла ошибка. Пожалуйста, попробуйте снова.");
                 }
                 console.error("Error:", error);
             }
         } else {
+            // Авторизация
             try {
                 const response = await axios.post("http://localhost:3000/login", {
                     email,
                     password,
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
                 });
 
                 if (response.status === 200) {
-                    alert("Login successful!");
+                    alert("Успешная авторизация!");
+                    localStorage.setItem('token', response.data.token); // Сохранение токена в localStorage
+                    localStorage.setItem("username", response.data.username);
+                    console.log(response.data);
+                    navigate("/profile"); // Перенаправление на страницу профиля
                 }
             } catch (error) {
                 // Обработка ошибок
                 if (error.response) {
-                    alert(error.response.data.error || "Login failed.");
+                    console.log(error.response.data);
+                    alert(error.response.data.error || "Ошибка входа");
                 } else {
-                    alert("An error occurred. Please try again.");
+                    alert("Произошла ошибка. Пожалуйста, попробуйте снова.");
                 }
                 console.error("Error:", error);
             }
@@ -66,16 +80,16 @@ function Auth() {
                         <input
                             type="text"
                             placeholder="Псевдоним"
-                            value={nickname}
-                            onChange={(e) => setNickname(e.target.value)}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             required
                         />
                     )}
                     <input
                         type="email"
                         placeholder="Почта"
-                        value={email} // Используем правильную переменную для email
-                        onChange={(e) => setEmail(e.target.value)} // Исправленный обработчик
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                     />
                     <input
@@ -86,7 +100,9 @@ function Auth() {
                         required
                     />
                     <button type="submit">{isRegister ? "Регистрация" : "Авторизация"}</button>
-                    <button type="submit">Войти как гость</button>
+                    <a href={"/game"}>
+                        <button type="button">Войти как гость</button>
+                    </a>
                 </form>
                 <button
                     className="switch-button"

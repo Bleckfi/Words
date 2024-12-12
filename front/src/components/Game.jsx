@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useNavigate } from "react-router-dom";
 import "../styles/game.css"
+
 function Game() {
     const [word, setWord] = useState("");
     const [log, setLog] = useState([]);
@@ -18,12 +19,19 @@ function Game() {
 
     useEffect(() => {
         const token = localStorage.getItem("token");
+        const storedUsername = localStorage.getItem("username");
+        if (token && storedUsername) {
+            setUsername(storedUsername);
+            setWaitingForName(false); // Пропускаем ввод имени, если оно уже сохранено
+        }
         socket.current = io("http://localhost:3000", {
             auth: { token },
         });
 
         socket.current.on("connect", () => {
-            // Подключение завершено, но имя будет отправлено только после ввода
+            if (storedUsername) {
+                socket.current.emit("join_game", storedUsername); // Присоединяемся с уже известным именем
+            }
         });
 
         socket.current.on("waiting", (data) => {
@@ -59,8 +67,9 @@ function Game() {
 
     const handleNameSubmit = () => {
         if (username) {
-            setWaitingForName(false); // Скрыть форму после ввода имени
-            socket.current.emit("join_game", username); // Отправить имя на сервер
+            localStorage.setItem("username", username); // Сохраняем имя в localStorage
+            setWaitingForName(false); // Скрываем форму
+            socket.current.emit("join_game", username); // Отправляем имя на сервер
         }
     };
 
@@ -87,32 +96,31 @@ function Game() {
         );
     }
 
-/*    if (!socket.current || !turn) {
-        return <div>Connecting to the game...</div>;
-    }*/
-
     return (
         <div className="game">
             <h1 className="title">Word Game</h1>
-            {gameOverMessage && <div><strong>Game Over:</strong> {gameOverMessage}</div>}
+            {gameOverMessage && <div className="game_over">{alert(gameOverMessage)}</div>}
             <div className="timer">
                 {timer}
             </div>
             <div className="players">
-             Саша vs Сережа   {players.join(" vs ")}
+                {players.join(" vs ")}
             </div>
             <div className="current_turn">
                 <strong>Сейчас ходит:</strong> {turn}
             </div>
-            <div className="letter">Буква текущего слова должна начинаться с: Б</div>
+            <div className="current_turn">
+                <strong>Очки за игру: 30</strong>
+            </div>
+            <div className="letter">Буква текущего слова должна начинаться с: А</div>
             <textarea className="text_game"
-                value={log.join("\n")}
-                readOnly
-                rows={15}
-                cols={70}
+                      value={log.join("\n")}
+                      readOnly
+                      rows={15}
+                      cols={70}
             />
             <div className="button_game">
-                {errorMessage && <div style={{ color: 'red' }}>{errorMessage}</div>} {/* Отображаем ошибку */}
+                {errorMessage && <div style={{color: 'red'}}>{errorMessage}</div>} {/* Отображаем ошибку */}
                 <input
                     value={word}
                     onChange={(e) => setWord(e.target.value)}

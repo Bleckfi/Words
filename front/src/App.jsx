@@ -13,18 +13,18 @@ function App() {
                 <Route
                     path="/game"
                     element={
-             //          <ProtectedRoute>
+                      <ProtectedRoute>
                             <Game />
               //          </ProtectedRoute>
                     }
                 />
                 <Route path={"/profile"} element={
-                  //  <ProtectedRoute>
+                   <ProtectedRoute>
                         <Profile />
                    // </ProtectedRoute>
                 }/>
                 <Route path={"/edit"} element={
-                //  <ProtectedRoute>
+                 <ProtectedRoute>
                 <WordManager />
                 // </ProtectedRoute>
             }/>
