@@ -98,7 +98,7 @@ const getUserProfile = async (req, res) => {
 
         // Запрашиваем данные о счете пользователя из таблицы ScoreBoard
         const userScore = await pool.request()
-            .query`SELECT Wins, Losses FROM ScoreBoard WHERE UserID = ${userId}`;
+            .query`SELECT Wins, Losses, total_points FROM Users WHERE UserID = ${userId}`;
 
         // Если профиль пользователя не найден
         if (userProfile.recordset.length === 0) {
@@ -108,15 +108,16 @@ const getUserProfile = async (req, res) => {
         // Если данные о счете не найдены, создаем значения по умолчанию
         const wins = userScore.recordset[0]?.Wins || 0;
         const losses = userScore.recordset[0]?.Losses || 0;
-
+        const score = userScore.recordset[0]?.total_points || 0
         // Вычисляем winRate
         const winRate = ((wins / (wins + losses)) * 100).toFixed(2);
 
         res.status(200).json({
-            username: userProfile.recordset[0].Username,  // Имя пользователя из Users
-            winRate: winRate,  // Рассчитанный winRate
-            wins: wins,        // Количество побед
-            losses: losses     // Количество поражений
+            username: userProfile.recordset[0].Username,
+            winRate: winRate,
+            wins: wins,
+            losses: losses,
+            score : score
         });
     } catch (error) {
         console.error("Error fetching user profile:", error);

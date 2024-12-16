@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import "../styles/profile.css";
 import axios from "axios";
 
@@ -9,10 +9,9 @@ function Profile() {
         "https://cs6.livemaster.ru/storage/51/8d/e9304e78c01418b5ea956d3be36a.jpg",
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRLCQgWsQ6kTgVyERmWiWCM83Lj2Bz3bqcgUA&s"]; // Примеры аватарок
 
-
     const [userInfo, setUserInfo] = useState(null); // Храним данные пользователя
     const [loading, setLoading] = useState(true); // Для индикатора загрузки
-
+    const [leaderboard, setLeaderboard] = useState([]); // Храним данные для таблицы лидеров
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -31,7 +30,23 @@ function Profile() {
             }
         };
 
+        const fetchLeaderboard = async () => {
+            try {
+                const response = await axios.get("http://localhost:3000/leaderboard");
+                if (response.status === 200) {
+                    setLeaderboard(response.data);
+                } else {
+                    console.error("Ошибка сервера:", response.status);
+                    alert("Ошибка при загрузке таблицы лидеров.");
+                }
+            } catch (error) {
+                console.error("Ошибка при запросе данных:", error);
+                alert("Не удалось загрузить данные таблицы лидеров. Попробуйте позже.");
+            }
+        };
+
         fetchUserData();
+        fetchLeaderboard();
     }, []);
 
     const handleAvatarChange = (newAvatar) => {
@@ -45,7 +60,9 @@ function Profile() {
     const wins = userInfo?.wins || 0;
     const losses = userInfo?.losses || 0;
     const winRate = (wins + losses) === 0 ? 0 : ((wins / (wins + losses)) * 100).toFixed(2); // Вычисляем винрейт
-    const score = userInfo?.score || 0; // Устанавливаем значение очков
+    const score = userInfo?.score || 0;
+    // Сортировка таблицы по очкам
+    const sortedLeaderboard = leaderboard.sort((a, b) => b.score - a.score);
 
     return (
         <div className="container">
@@ -85,7 +102,18 @@ function Profile() {
                             </tr>
                             </thead>
                             <tbody>
-                            {/* Здесь можно добавить логику для отображения лидерборда, если нужно */}
+                            {sortedLeaderboard.map((user, index) => {
+
+                                const winRate = (user.Wins + user.Losses) === 0 ? 0 : ((user.Wins / (user.Wins + user.Losses)) * 100).toFixed(2);
+                                return (
+                                    <tr key={user.Username}>
+                                        <td>{index + 1}</td>
+                                        <td>{user.Username}</td>
+                                        <td>{user.total_points}</td>
+                                        <td>{winRate}%</td>
+                                    </tr>
+                                );
+                            })}
                             </tbody>
                         </table>
                     </div>
