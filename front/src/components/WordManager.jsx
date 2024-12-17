@@ -6,24 +6,49 @@ function WordManager() {
     const [deleteWord, setDeleteWord] = useState("");
     const [message, setMessage] = useState("");
 
-    const handleAddWord = (e) => {
+    const handleAddWord = async (e) => {
         e.preventDefault();
         if (word.trim() === "") {
             setMessage("Введите слово перед добавлением!");
             return;
         }
-        setMessage(`Слово "${word}" успешно добавлено!`);
-        setWord("");
+
+        try {
+            const response = await fetch("http://localhost:3000/add_word", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ word }),
+            });
+
+            const data = await response.json();
+            setMessage(data.message);
+            setWord("");
+        } catch (error) {
+            console.error("Ошибка при добавлении слова:", error);
+            setMessage("Ошибка при добавлении слова.");
+        }
     };
 
-    const handleDeleteWord = (e) => {
+    const handleDeleteWord = async (e) => {
         e.preventDefault();
         if (deleteWord.trim() === "") {
             setMessage("Введите слово перед удалением!");
             return;
         }
-        setMessage(`Слово "${deleteWord}" успешно удалено!`);
-        setDeleteWord(""); // Очистить поле ввода
+        try {
+            const response = await fetch("http://localhost:3000/delete_word", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ word: deleteWord }),
+            });
+
+            const data = await response.json();
+            setMessage(data.message);
+            setDeleteWord("");
+        } catch (error) {
+            console.error("Ошибка при удалении слова:", error);
+            setMessage("Ошибка при удалении слова.");
+        }
     };
 
     return (

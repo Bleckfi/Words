@@ -100,9 +100,9 @@ function Auth() {
                         required
                     />
                     <button type="submit">{isRegister ? "Регистрация" : "Авторизация"}</button>
-                    <a href={"/game"}>
-                        <button type="button">Войти как гость</button>
-                    </a>
+                    <button type="button" onClick={() => navigate("/game")}>
+                        Войти как гость
+                    </button>
                 </form>
                 <button
                     className="switch-button"

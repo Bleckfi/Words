@@ -19,7 +19,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: "http://localhost:5173",
-        methods: ["GET", "POST"],
+        methods: ["GET", "POST", "DELETE"],
     },
 });
 
@@ -65,17 +65,63 @@ async function initializePool() {
 initializePool();
 
 
-const validWords = ['яблоко','арбуз','зебра','олень','закат','трость','титан','нос','смысл','легко','овал'];
+
 let usedWords = [];
 
 
 // Middleware
 app.use(cors({
     origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "DELETE"],
     credentials: true
 }));
 app.use(express.json());
+
+
+
+app.post('/add_word', async (req, res) => {
+    const { word } = req.body;
+
+    if (!word) {
+        return res.status(400).json({ message: "Слово не указано!" });
+    }
+
+    try {
+        const result = await pool.request()
+            .input('word', sql.NVarChar, word)
+            .query('INSERT INTO Words (Word) VALUES (@word);');
+
+        res.json({ message: `Слово "${word}" успешно добавлено в базу данных.` });
+    } catch (error) {
+        console.error("Ошибка при добавлении слова:", error);
+        res.status(500).json({ message: "Ошибка сервера при добавлении слова." });
+    }
+});
+
+app.delete('/delete_word', async (req, res) => {
+    const { word } = req.body;
+
+    if (!word) {
+        return res.status(400).json({ message: "Слово не указано!" });
+    }
+
+    try {
+        const result = await pool.request()
+            .input('word', sql.NVarChar, word)
+            .query('DELETE FROM Words WHERE Word = @word;');
+
+        if (result.rowsAffected[0] > 0) {
+            res.json({ message: `Слово "${word}" успешно удалено из базы данных.` });
+        } else {
+            res.status(404).json({ message: `Слово "${word}" не найдено в базе данных.` });
+        }
+    } catch (error) {
+        console.error("Ошибка при удалении слова:", error);
+        res.status(500).json({ message: "Ошибка сервера при удалении слова." });
+    }
+});
+
+
 
 // Игровая логика
 let games = {};
@@ -217,18 +263,13 @@ io.on("connection", (socket) => {
 
         if (!game || game.turn !== socket.user.username) return;
 
-        const wordSubmitTime = 30 - game.timer; // Время, которое осталось на таймере (30 секунд - оставшееся время)
+        const wordSubmitTime = 30 - game.timer;
         let points = 0;
 
-        if (wordSubmitTime <= 10) {
-            points = 30; // Если слово введено за 10 секунд
-        } else if (wordSubmitTime > 10 && wordSubmitTime <= 20) {
-            points = 20; // Если слово введено за 10-20 секунд
-        } else if (wordSubmitTime > 20 && wordSubmitTime < 30) {
-            points = 5; // Если слово введено за 20-30 секунд
-        }
+        if (wordSubmitTime <= 10) points = 30;
+        else if (wordSubmitTime > 10 && wordSubmitTime <= 20) points = 20;
+        else if (wordSubmitTime > 20 && wordSubmitTime < 30) points = 5;
 
-        // Проверяем слово в текстовом файле
         const isValid = await isWordValid(word);
         if (!isValid) {
             socket.emit("invalid_word", "Такое слово не найдено");
@@ -249,12 +290,17 @@ io.on("connection", (socket) => {
             }
         }
 
-        // Добавляем слово в список использованных слов
+        // Добавляем слово в список использованных
         game.usedWords.push(word);
-
+        console.log(socket.user);
+        if (socket.user && socket.user.id && typeof socket.user.id === "string") {
+            if (!socket.user.id.startsWith("guest_")) {
+                game[socket.user.username] = (game[socket.user.username] || 0) + points;
+            } else {
+                game[socket.user.username] = (game[socket.user.username] || 0) + points;
+            }
+        }
         game.log.push(`${socket.user.username}: ${word} (Очки: ${points})`);
-
-        game[socket.user.username] = (game[socket.user.username] || 0) + points;
 
         game.turn = game.turn === game.player1.username ? game.player2.username : game.player1.username;
         game.timer = 30;
@@ -307,31 +353,29 @@ io.on("connection", (socket) => {
         if (gameId) {
             const game = games[gameId];
             const { player1, player2 } = game;
-            const player1Points = game[player1.username] || 0;
-            const player2Points = game[player2.username] || 0;
 
-            // Сохранение очков в БД
-            try {
-                await pool.request()
-                    .input('points', sql.Int, player1Points)
-                    .input('username', sql.NVarChar, player1.username)
-                    .query('UPDATE Users SET total_points = total_points + @points WHERE Username = @username');
+            if (!socket.user.id.startsWith("guest_")) {
+                const player1Points = game[player1.username] || 0;
+                const player2Points = game[player2.username] || 0;
 
-                await pool.request()
-                    .input('points', sql.Int, player2Points)
-                    .input('username', sql.NVarChar, player2.username)
-                    .query('UPDATE Users SET total_points = total_points + @points WHERE Username = @username');
+                try {
+                    await pool.request()
+                        .input('points', sql.Int, player1Points)
+                        .input('username', sql.NVarChar, player1.username)
+                        .query('UPDATE Users SET total_points = total_points + @points WHERE Username = @username');
 
+                    await pool.request()
+                        .input('points', sql.Int, player2Points)
+                        .input('username', sql.NVarChar, player2.username)
+                        .query('UPDATE Users SET total_points = total_points + @points WHERE Username = @username');
 
-                console.log(`Очки зачислены: ${player1.username}: ${player1Points}, ${player2.username}: ${player2Points}`);
-            } catch (err) {
-                console.error("Ошибка при сохранении очков:", err);
+                    console.log(`Очки зачислены: ${player1.username}: ${player1Points}, ${player2.username}: ${player2Points}`);
+                } catch (err) {
+                    console.error("Ошибка при сохранении очков:", err);
+                }
             }
 
-            // Очистка игры и удаление
             delete games[gameId];
-
-            // Отправка сообщения о завершении игры
             io.to(gameId).emit("game_update", {
                 log: [`Игрок ${socket.user.username} отключился, игра завершена.`],
             });
@@ -350,66 +394,30 @@ io.on("connection", (socket) => {
             game.timer -= 1;
 
             if (game.timer === 0) {
-                // Определяем победителя и проигравшего
                 const winner = game.turn !== game.player1.username ? game.player1.username : game.player2.username;
                 const loser = winner === game.player1.username ? game.player2.username : game.player1.username;
 
-                console.log(`Победитель: ${winner}, Проигравший: ${loser}`);
+                if (!game.player1.id.startsWith("guest_") && !game.player2.id.startsWith("guest_")) {
+                    try {
+                        const transaction = new sql.Transaction(pool);
+                        await transaction.begin();
 
-                // Получаем очки игроков
-                const player1Points = game[game.player1.username] || 0;
-                const player2Points = game[game.player2.username] || 0;
+                        await transaction.request()
+                            .input('winner', sql.NVarChar, winner)
+                            .query(`UPDATE Users SET Wins = Wins + 1 WHERE Username = @winner;`);
 
-                try {
-                    // Начинаем транзакцию
-                    const transaction = new sql.Transaction(pool);
-                    await transaction.begin();
+                        await transaction.request()
+                            .input('loser', sql.NVarChar, loser)
+                            .query(`UPDATE Users SET Losses = Losses + 1 WHERE Username = @loser;`);
 
-                    // Запрос на обновление данных победителя
-                    const winnerUpdate = await transaction.request()
-                        .input('winner', sql.NVarChar, winner)
-                        .input('player1Points', sql.Int, player1Points)
-                        .query(`
-                        UPDATE Users SET total_points = total_points + @player1Points, Wins = Wins + 1
-                        WHERE Username = @winner;
-                    `);
-
-                    if (winnerUpdate.rowsAffected[0] === 0) {
-                        throw new Error(`Не удалось обновить данные победителя: ${winner}`);
+                        await transaction.commit();
+                    } catch (error) {
+                        console.error("Ошибка при сохранении данных в базе:", error);
                     }
-
-                    // Запрос на обновление данных проигравшего
-                    const loserUpdate = await transaction.request()
-                        .input('loser', sql.NVarChar, loser)
-                        .input('player2Points', sql.Int, player2Points)
-                        .query(`
-                        UPDATE Users SET total_points = total_points + @player2Points, Losses = Losses + 1
-                        WHERE Username = @loser;
-                    `);
-
-                    if (loserUpdate.rowsAffected[0] === 0) {
-                        throw new Error(`Не удалось обновить данные проигравшего: ${loser}`);
-                    }
-
-                    // Завершаем транзакцию
-                    await transaction.commit();
-
-                    console.log(`Победитель: ${winner} с очками: ${player1Points}`);
-                    console.log(`Проигравший: ${loser} с очками: ${player2Points}`);
-
-                } catch (error) {
-                    console.error("Ошибка при сохранении данных в базе:", error);
-                    await transaction.rollback();
-                    io.to(gameId).emit("error", { message: "Ошибка при сохранении данных" });
                 }
 
-                // Отправляем сообщение о завершении игры
                 io.to(gameId).emit("game_over", { message: `Выиграл ${winner}, Поздравляем!`, data: game });
-
-                // Останавливаем таймер
                 clearInterval(interval);
-
-                // Удаляем игру из активных
                 delete games[gameId];
             } else {
                 io.to(game.id).emit("timer_update", { timer: game.timer });

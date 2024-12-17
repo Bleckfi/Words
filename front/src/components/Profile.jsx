@@ -61,6 +61,11 @@ function Profile() {
     const losses = userInfo?.losses || 0;
     const winRate = (wins + losses) === 0 ? 0 : ((wins / (wins + losses)) * 100).toFixed(2); // Вычисляем винрейт
     const score = userInfo?.score || 0;
+
+    if (userInfo.username === "ADMIN") {
+        userInfo.isAdmin = true
+    }
+
     // Сортировка таблицы по очкам
     const sortedLeaderboard = leaderboard.sort((a, b) => b.score - a.score);
 
@@ -89,7 +94,11 @@ function Profile() {
                         <div className="wins">Количество побед/поражений: {wins} / {losses} ({winRate}%)</div>
                         <div className="score">Количество очков: {score}</div>
                         <a href="/game" className="button">Начать игру</a>
-                        <a href="/edit" className="button">Редактировать словарь</a>
+                        {userInfo.isAdmin && (
+                            <div>
+                                <a href="/edit" className="button">Редактировать словарь</a>
+                            </div>
+                        )}
                     </div>
                     <div className="right">
                         <table>
